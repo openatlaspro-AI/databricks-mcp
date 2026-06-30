@@ -1,1 +1,8 @@
-# Fixtures added in Task 4.
+import pytest
+
+from databricks_mcp.backends.duckdb_backend import DuckDBBackend
+
+
+@pytest.fixture
+def backend():
+    return DuckDBBackend()
