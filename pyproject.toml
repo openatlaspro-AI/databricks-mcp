@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "databricks-mcp"
+version = "0.1.0"
+description = "Safe, read-only SQL analytics MCP server for AI agents — local DuckDB default + Databricks SQL Warehouse"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Mark Teji" }]
+keywords = ["mcp", "databricks", "duckdb", "sql", "ai-agents", "model-context-protocol"]
+dependencies = [
+  "mcp>=1.2.0",
+  "duckdb>=1.1.0",
+  "sqlglot>=25.0.0",
+  "pydantic>=2.6.0",
+  "databricks-sql-connector>=3.4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6.0"]
+
+[project.scripts]
+databricks-mcp = "databricks_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/databricks_mcp"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"sample_data" = "databricks_mcp/sample_data"
+
+[tool.pytest.ini_options]
+addopts = "-v --tb=short"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
