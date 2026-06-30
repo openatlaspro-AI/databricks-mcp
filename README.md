@@ -90,7 +90,11 @@ AST rather than fragile string matching:
    `INSERT/UPDATE/DELETE/DROP/ALTER/CREATE/GRANT/COPY/CALL/PRAGMA/ATTACH` is rejected.
 4. **System-table block.** References to `information_schema`, `pg_catalog`, `system`, and similar
    catalogs are denied — agents introspect schema through `list_tables`/`describe_table` instead.
-5. **Auto-LIMIT.** A `LIMIT` (default `1000`, configurable via `MAX_ROWS`) is injected when absent,
+5. **Filesystem-function block.** Read-only SELECTs can still call table functions like
+   `read_csv`, `read_parquet`, `read_text`, and `glob` to read local files. The guard walks the AST
+   and denies these, so an agent can't exfiltrate the host filesystem (e.g.
+   `SELECT * FROM read_text('/etc/passwd')`).
+6. **Auto-LIMIT.** A `LIMIT` (default `1000`, configurable via `MAX_ROWS`) is injected when absent,
    so an agent can never pull unbounded data.
 
 Identifier arguments (`table`) are additionally checked against the known-table list before they
@@ -98,7 +102,7 @@ are ever interpolated into SQL, preventing identifier injection.
 
 Every one of these rules is backed by a passing test — see
 [`tests/test_safety.py`](tests/test_safety.py) (read-only allowlist, multi-statement, unparseable,
-system-table, and auto-LIMIT cases) and [`tests/test_duckdb_backend.py`](tests/test_duckdb_backend.py)
+system-table, filesystem-function, and auto-LIMIT cases) and [`tests/test_duckdb_backend.py`](tests/test_duckdb_backend.py)
 (unknown-table rejection, row-cap truncation). The README makes no guardrail claim that isn't
 proven by the suite.
 
