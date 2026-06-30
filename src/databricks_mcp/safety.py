@@ -17,6 +17,26 @@ _BLOCKED_SCHEMAS = {
     "sys",
 }
 
+# Table/scalar functions that read the local filesystem or attach external sources.
+# These parse as ordinary read-only SELECTs but would let an agent exfiltrate local
+# files (e.g. SELECT * FROM read_text('/etc/passwd')) — so they are denied outright.
+_BLOCKED_FUNCTIONS = {
+    "read_csv",
+    "read_csv_auto",
+    "read_parquet",
+    "read_json",
+    "read_json_auto",
+    "read_ndjson",
+    "read_text",
+    "read_blob",
+    "glob",
+    "parquet_scan",
+    "csv_scan",
+    "delta_scan",
+    "iceberg_scan",
+    "sniff_csv",
+}
+
 
 class SQLValidationError(Exception):
     """Raised when a query is not a safe, read-only single statement."""
@@ -34,6 +54,18 @@ def _check_blocked_schemas(expr: exp.Expression) -> None:
         if db in _BLOCKED_SCHEMAS or name in _BLOCKED_SCHEMAS:
             raise SQLValidationError(
                 f"Access to system/catalog table '{table.sql()}' is not allowed."
+            )
+
+
+def _check_blocked_functions(expr: exp.Expression) -> None:
+    # Unknown/file-reading functions parse as exp.Anonymous; known ones as named nodes.
+    for func in expr.find_all(exp.Func):
+        name = (func.sql_name() or "").lower()
+        if isinstance(func, exp.Anonymous):
+            name = (func.name or "").lower()
+        if name in _BLOCKED_FUNCTIONS:
+            raise SQLValidationError(
+                f"Function '{name}' is not allowed (filesystem/external access is blocked)."
             )
 
 
@@ -56,6 +88,7 @@ def validate_and_rewrite(sql: str, max_rows: int, dialect: str = "duckdb") -> st
         raise SQLValidationError("Only read-only SELECT queries are allowed.")
 
     _check_blocked_schemas(expr)
+    _check_blocked_functions(expr)
 
     if expr.args.get("limit") is None:
         expr = expr.limit(max_rows)

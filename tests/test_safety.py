@@ -54,6 +54,21 @@ def test_system_table_is_blocked():
         validate_and_rewrite("SELECT * FROM information_schema.tables", max_rows=1000)
 
 
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "SELECT * FROM read_text('/etc/passwd')",
+        "SELECT * FROM read_csv('/etc/passwd')",
+        "SELECT * FROM read_parquet('/secret/data.parquet')",
+        "SELECT * FROM glob('/**')",
+        "SELECT content FROM read_blob('/etc/hosts')",
+    ],
+)
+def test_filesystem_functions_are_blocked(sql):
+    with pytest.raises(SQLValidationError):
+        validate_and_rewrite(sql, max_rows=1000)
+
+
 def test_trailing_semicolon_is_fine():
     out = validate_and_rewrite("SELECT 1 AS a;", max_rows=10)
     assert "LIMIT 10" in out.upper()
